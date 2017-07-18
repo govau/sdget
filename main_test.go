@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var sample_txt_records = []string{
+var sampleTxtRecords = []string{
 	"foo=bar",
 	"empty=",
 	"multival=1",
@@ -21,43 +21,41 @@ var sample_txt_records = []string{
 }
 
 type lookUpValuesTestPair struct {
-	options *Options
-	txt_records []string
-	key string
-	default_values []string
+	Options       *options
+	TxtRecords    []string
+	Key           string
+	DefaultValues []string
 
-	result []string
-	err error
-}
-
-var look_up_values_pairs = []lookUpValuesTestPair{
-	{ MakeDefaultOptions(), []string{}, "foo", []string{}, nil, errors.New("No values") },
-	{ MakeDefaultOptions(), sample_txt_records, "foo", []string{}, []string{"bar"}, nil },
-	{ MakeDefaultOptions(), sample_txt_records, "foo", []string{"default"}, []string{"bar"}, nil },
-	{ MakeDefaultOptions(), sample_txt_records, "nosuchkey", []string{"default value"}, []string{"default value"}, nil },
-	{ MakeDefaultOptions(), sample_txt_records, "empty", []string{}, []string{""}, nil },
-	{ MakeDefaultOptions(), sample_txt_records, "spaces and multiple equals signs", []string{}, []string{"are no=problem at=all"}, nil },
-	{ MakeDefaultOptions(), sample_txt_records, "nosuchkey", []string{}, nil, errors.New("No values") },
-	{ MakeDefaultOptions(), sample_txt_records, "notkv", []string{}, nil, errors.New("No values") },
-	{ MakeDefaultOptions(), sample_txt_records, "multival", []string{}, nil, errors.New("Too many values") },
+	Result []string
+	Err    error
 }
 
 func TestLookUpValues(t *testing.T) {
-	for _, test_pair := range look_up_values_pairs {
-		result, err := LookUpValues(test_pair.options, test_pair.txt_records, test_pair.key, test_pair.default_values)
+	for _, testPair := range []lookUpValuesTestPair{
+		{makeDefaultOptions(), []string{}, "foo", []string{}, nil, errors.New("No values")},
+		{makeDefaultOptions(), sampleTxtRecords, "foo", []string{}, []string{"bar"}, nil},
+		{makeDefaultOptions(), sampleTxtRecords, "foo", []string{"default"}, []string{"bar"}, nil},
+		{makeDefaultOptions(), sampleTxtRecords, "nosuchkey", []string{"default value"}, []string{"default value"}, nil},
+		{makeDefaultOptions(), sampleTxtRecords, "empty", []string{}, []string{""}, nil},
+		{makeDefaultOptions(), sampleTxtRecords, "spaces and multiple equals signs", []string{}, []string{"are no=problem at=all"}, nil},
+		{makeDefaultOptions(), sampleTxtRecords, "nosuchkey", []string{}, nil, errors.New("No values")},
+		{makeDefaultOptions(), sampleTxtRecords, "notkv", []string{}, nil, errors.New("No values")},
+		{makeDefaultOptions(), sampleTxtRecords, "multival", []string{}, nil, errors.New("Too many values")},
+	} {
+		result, err := lookUpValues(testPair.Options, testPair.TxtRecords, testPair.Key, testPair.DefaultValues)
 
-		if err != nil && test_pair.err == nil {
-			t.Error("Unexpected error", err.Error(), "for", test_pair);
+		if err != nil && testPair.Err == nil {
+			t.Error("Unexpected error", err.Error(), "for", testPair)
 		}
 
-		if err == nil && test_pair.err != nil {
-			t.Error("Expected error", test_pair.err.Error(), "not caught for", test_pair);
+		if err == nil && testPair.Err != nil {
+			t.Error("Expected error", testPair.Err.Error(), "not caught for", testPair)
 		}
 
 		sort.Strings(result)
 
-		if !reflect.DeepEqual(result, test_pair.result) {
-			t.Error("Expected", test_pair.result, "but got", result, "for", test_pair);
+		if !reflect.DeepEqual(result, testPair.Result) {
+			t.Error("Expected", testPair.Result, "but got", result, "for", testPair)
 		}
 	}
 }
