@@ -1,24 +1,55 @@
 package main
 
 import (
-	"flag"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
+	"github.com/alecthomas/kingpin"
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 )
 
-type options struct{}
-
-func makeDefaultOptions() *options {
-	return &options{}
+type options struct {
+	outputFormat string
+	valueType    string
 }
 
-func printUsage() {
-	fmt.Printf("Usage: %s domain key [default value] [default value] ...\n", os.Args[0])
-	flag.PrintDefaults()
+func makeDefaultOptions() *options {
+	return &options{
+		outputFormat: "plain",
+		valueType:    "single",
+	}
+}
+
+func output(options *options, sink io.Writer, values []string) error {
+	if options.valueType == "single" && len(values) != 1 {
+		return fmt.Errorf("expected 1 value but got %d (%v)", len(values), values)
+	}
+	switch options.outputFormat {
+	case "plain":
+		for _, record := range values {
+			if _, err := fmt.Fprintln(sink, record); err != nil {
+				return err
+			}
+		}
+	case "json":
+		var err error
+		encoder := json.NewEncoder(sink)
+		encoder.SetEscapeHTML(false)
+		switch options.valueType {
+		case "single":
+			err = encoder.Encode(values[0])
+		case "list":
+			err = encoder.Encode(values)
+		}
+		if err != nil {
+			return errors.Wrap(err, "error writing JSON")
+		}
+	}
+	return nil
 }
 
 func getTxtRecords(options *options, domain string) ([]string, error) {
@@ -72,54 +103,56 @@ func lookUpValues(options *options, txtRecords []string, key string, defaultValu
 			values = append(values, pieces[1])
 		}
 	}
-
-	if len(values) == 0 && len(defaultValues) == 0 {
-		// TODO: make this check optional
-		// This is just a default restriction
-		return nil, errors.Errorf("no values found for key %s, and no default provided", key)
-	}
-	if len(values) > 1 {
-		// TODO: make this check optional, too
-		// This is just a default restriction
-		return nil, errors.Errorf("%d values found for key %s, but only 1 was expected", len(values), key)
-	}
 	if len(values) == 0 {
-		return defaultValues, nil
+		values = defaultValues
 	}
+
+	if options.valueType == "single" {
+		if len(values) == 0 {
+			return nil, errors.Errorf("no values found for key %s, and no default provided", key)
+		}
+		if len(values) > 1 {
+			return nil, errors.Errorf("%d values found for key %s, but only 1 was expected", len(values), key)
+		}
+	}
+
 	return values, nil
 }
 
 func main() {
 	options := makeDefaultOptions()
+	kingpin.CommandLine.HelpFlag.Short('h')
+	kingpin.Flag("format", "Output format (plain, json)").Short('f').Default("plain").EnumVar(&options.outputFormat, "plain", "json")
+	kingpin.Flag("type", "Data value type (single, list)").Short('t').Default("single").EnumVar(&options.valueType, "single", "list")
+	domain := kingpin.Arg("domain", "Domain name to query for TXT records").Required().String()
+	key := kingpin.Arg("key", "Key name to look up in domain").Required().String()
+	defaultValues := kingpin.Arg("default", "Default value(s) to use if key is not found").Strings()
+	kingpin.Parse()
 
-	flag.Usage = printUsage
-	flag.Parse()
-
-	args := flag.Args()
-	if len(args) < 2 {
-		printUsage()
-		os.Exit(2)
+	if *defaultValues == nil {
+		defaultValues = &[]string{}
 	}
 
-	domain := args[0]
-	key := args[1]
-	defaultValues := args[2:]
+	if options.valueType == "single" && len(*defaultValues) > 1 {
+		fmt.Fprintf(os.Stderr, "Got %n default values, but the value type is \"single\".  (Did you mean to set --type list?)", len(*defaultValues))
+		os.Exit(1)
+	}
 
-	txtRecords, err := getTxtRecords(options, domain)
+	txtRecords, err := getTxtRecords(options, *domain)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error doing DNS lookup:\n%+v\n", err.Error())
 		os.Exit(3)
 	}
 
 	var values []string
-	values, err = lookUpValues(options, txtRecords, key, defaultValues)
+	values, err = lookUpValues(options, txtRecords, *key, *defaultValues)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error looking up values for key \"%s\" in domain %s:\n%+v\n", key, domain, err.Error())
+		fmt.Fprintf(os.Stderr, "Error looking up values for key \"%s\" in domain %s:\n%+v\n", *key, *domain, err.Error())
 		os.Exit(4)
 	}
 
-	// Only line-by-line output supported for now
-	for _, record := range values {
-		fmt.Printf("%s\n", record)
+	if err = output(options, os.Stdout, values); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing output values: %s", err.Error())
+		os.Exit(5)
 	}
 }
