@@ -47,9 +47,10 @@ $ sdget --type list --format json foo.example.com things
 usage: sdget [<flags>] <domain> <key> [<default>...]
 
 Flags:
-  -h, --help          Show context-sensitive help (also try --help-long and --help-man).
-  -f, --format=plain  Output format (plain, json)
-  -t, --type=single   Data value type (single, list)
+  -h, --help                   Show context-sensitive help (also try --help-long and --help-man).
+  -f, --format=plain           Output format (plain, json)
+  -@, --nameserver=NAMESERVER  Nameserver address (ns.example.com:53, 127.0.0.1)
+  -t, --type=single            Data value type (single, list)
 
 Args:
   <domain>     Domain name to query for TXT records

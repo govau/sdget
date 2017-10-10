@@ -78,6 +78,38 @@ func TestOutput(t *testing.T) {
 	}
 }
 
+var resolvConf = bytes.NewBufferString("nameserver 127.0.0.1\n")
+
+type configureNameserverTestPair struct {
+	Input  string
+	Result string
+}
+
+func TestConfigureNameserver(t *testing.T) {
+	for _, testPair := range []configureNameserverTestPair{
+		// FIXME: uncomment when FIXME in target function is fixed
+		// {"", "127.0.0.1:53"},
+		{"example.com", "example.com:53"},
+		{"example.com:1053", "example.com:1053"},
+		{"::", "[::]:53"},
+		{"::1", "[::1]:53"},
+		{"1::", "[1::]:53"},
+		{"[::]:1053", "[::]:1053"},
+		{"2606:2800:220:1:248:1893:25c8:1946", "[2606:2800:220:1:248:1893:25c8:1946]:53"},
+		{"[2606:2800:220:1:248:1893:25c8:1946]:1053", "[2606:2800:220:1:248:1893:25c8:1946]:1053"},
+	} {
+		options := makeDefaultOptions()
+		options.nameserver = testPair.Input
+		err := configureNameserver(options, resolvConf)
+		if err != nil {
+			t.Error("Error", err.Error(), "for", testPair)
+		}
+		if options.nameserver != testPair.Result {
+			t.Error("Expected", testPair.Result, "but got", options.nameserver)
+		}
+	}
+}
+
 type lookUpValuesTestPair struct {
 	Options       *options
 	TxtRecords    []string
