@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -78,7 +79,7 @@ func TestOutput(t *testing.T) {
 	}
 }
 
-var resolvConf = bytes.NewBufferString("nameserver 127.0.0.1\n")
+var resolvConf = strings.NewReader("nameserver 127.0.0.1\n")
 
 type configureNameserverTestPair struct {
 	Input  string
