@@ -58,6 +58,18 @@ Args:
   [<default>]  Default value(s) to use if key is not found
 ```
 
+Flag defaults can be set using environment variables of the form `SDGET_FLAGNAME`.  E.g.:
+
+```bash
+$ sdget foo.example.com key
+value
+$ export SDGET_FORMAT=json
+$ sdget foo.example.com key
+"value"
+$ sdget --format plain foo.example.com key
+value
+```
+
 ## TXT format details
 Each TXT string is treated as a simple key/value pair separated by a single `=`.  Everything after the first `=` is considered a value, which can contain any valid characters, including spaces or more `=` signs.  The key can contain any valid non-`=` characters.  Repeated keys are interpreted as lists.  Strings that aren't key/value pairs are simply ignored.
 
