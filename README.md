@@ -70,6 +70,9 @@ $ sdget foo.example.com key
 "value"
 $ sdget --format plain foo.example.com key
 value
+$ unset SDGET_FORMAT
+$ sdget foo.example.com key
+value
 ```
 
 ### `--format`
