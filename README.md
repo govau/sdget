@@ -47,8 +47,10 @@ $ sdget --type list --format json foo.example.com things
 usage: sdget [<flags>] <domain> <key> [<default>...]
 
 Flags:
-  -h, --help                   Show context-sensitive help (also try --help-long and --help-man).
-  -f, --format=plain           Output format (plain, json)
+  -h, --help                   Show context-sensitive help (also try --help-long
+                               and --help-man).
+      --version                Show application version.
+  -f, --format=plain           Output format (json, plain, shell)
   -@, --nameserver=NAMESERVER  Nameserver address (ns.example.com:53, 127.0.0.1)
   -t, --type=single            Data value type (single, list)
 
@@ -69,6 +71,12 @@ $ sdget foo.example.com key
 $ sdget --format plain foo.example.com key
 value
 ```
+
+### `--format`
+
+* `json`: values encoded as JSON --- either a string or a list, depending on `--type`
+* `plain`: values are output verbatim (default)
+* `shell`: values are quoted for passing to a Bourne-compatible shell.
 
 ## TXT format details
 Each TXT string is treated as a simple key/value pair separated by a single `=`.  Everything after the first `=` is considered a value, which can contain any valid characters, including spaces or more `=` signs.  The key can contain any valid non-`=` characters.  Repeated keys are interpreted as lists.  Strings that aren't key/value pairs are simply ignored.
