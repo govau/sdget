@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/alecthomas/kingpin"
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 type options struct {
@@ -166,6 +166,7 @@ func lookUpValues(options *options, txtRecords []string, key string, defaultValu
 
 func main() {
 	options := makeDefaultOptions()
+	kingpin.Version("0.3.0")
 	kingpin.CommandLine.HelpFlag.Short('h')
 	kingpin.Flag("format", "Output format (plain, json)").Short('f').Default("plain").EnumVar(&options.outputFormat, "plain", "json")
 	kingpin.Flag("nameserver", "Nameserver address (ns.example.com:53, 127.0.0.1)").Short('@').StringVar(&options.nameserver)
