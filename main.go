@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kballard/go-shellquote"
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -51,8 +50,6 @@ func output(options *options, sink io.Writer, values []string) error {
 				return err
 			}
 		}
-	case "shell":
-		fmt.Fprintln(sink, shellquote.Join(values...))
 	}
 	return nil
 }
@@ -171,7 +168,7 @@ func main() {
 	options := makeDefaultOptions()
 	kingpin.Version("0.4.0")
 	kingpin.CommandLine.HelpFlag.Short('h')
-	kingpin.Flag("format", "Output format (json, plain, shell)").Short('f').Default("plain").Envar("SDGET_FORMAT").EnumVar(&options.outputFormat, "json", "plain", "shell")
+	kingpin.Flag("format", "Output format (json, plain)").Short('f').Default("plain").Envar("SDGET_FORMAT").EnumVar(&options.outputFormat, "json", "plain")
 	kingpin.Flag("nameserver", "Nameserver address (ns.example.com:53, 127.0.0.1)").Short('@').Envar("SDGET_NAMESERVER").StringVar(&options.nameserver)
 	kingpin.Flag("type", "Data value type (single, list)").Short('t').Default("single").Envar("SDGET_TYPE").EnumVar(&options.valueType, "single", "list")
 	domain := kingpin.Arg("domain", "Domain name to query for TXT records").Required().String()
