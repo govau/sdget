@@ -169,7 +169,7 @@ func lookUpValues(options *options, txtRecords []string, key string, defaultValu
 
 func main() {
 	options := makeDefaultOptions()
-	kingpin.Version("0.3.0")
+	kingpin.Version("0.4.0")
 	kingpin.CommandLine.HelpFlag.Short('h')
 	kingpin.Flag("format", "Output format (json, plain, shell)").Short('f').Default("plain").Envar("SDGET_FORMAT").EnumVar(&options.outputFormat, "json", "plain", "shell")
 	kingpin.Flag("nameserver", "Nameserver address (ns.example.com:53, 127.0.0.1)").Short('@').Envar("SDGET_NAMESERVER").StringVar(&options.nameserver)
