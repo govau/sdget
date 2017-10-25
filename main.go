@@ -106,14 +106,17 @@ func getTxtRecords(options *options, domain string) ([]string, error) {
 	if !strings.HasSuffix(domain, ".") {
 		domain = domain + "."
 	}
-	// This DNS client library doesn't do retries or fallbacks to TCP, but it's good enough for a proof of concept.
-	// Maybe replace all this with bindings to one of the more solid C libraries.
-	client := new(dns.Client)
+
 	query := new(dns.Msg)
 	query.SetQuestion(domain, dns.TypeTXT)
 	query.RecursionDesired = true
 
+	client := new(dns.Client)
 	response, _, err := client.Exchange(query, options.nameserver)
+	if err == dns.ErrTruncated {
+		client.Net = "tcp"
+		response, _, err = client.Exchange(query, options.nameserver)
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "error executing DNS query")
 	}
