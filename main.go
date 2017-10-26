@@ -7,10 +7,37 @@ import (
 	"os"
 	"strings"
 
-	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
+
+type txtProvider interface {
+	getTxtRecords() ([]string, error)
+}
+
+func getTxtProvider(options *options, source string) (txtProvider, error) {
+	if strings.ContainsRune(source, ':') {
+		uri, err := parseURI(source)
+		if err != nil {
+			return nil, err
+		}
+		switch uri.scheme {
+		case "dns":
+			domain := uri.path
+			if uri.query != "" {
+				return nil, fmt.Errorf("unexpected \"%s\": queries in DNS URIs not supported", uri.query)
+			}
+			if uri.fragment != "" {
+				return nil, fmt.Errorf("unexpected \"%s\": fragments in DNS URIs not supported", uri.fragment)
+			}
+			if strings.HasPrefix(domain, "/") {
+				domain = domain[1:len(domain)]
+			}
+			return makeDnsProvider(options, uri.authority, domain)
+		}
+	}
+	return makeDnsProvider(options, "", source)
+}
 
 type options struct {
 	outputFormat string
@@ -53,47 +80,6 @@ func output(options *options, sink io.Writer, values []string) error {
 	return nil
 }
 
-func getTxtRecords(options *options, domain string) ([]string, error) {
-	if !strings.HasSuffix(domain, ".") {
-		domain = domain + "."
-	}
-
-	query := new(dns.Msg)
-	query.SetQuestion(domain, dns.TypeTXT)
-	query.RecursionDesired = true
-
-	client := new(dns.Client)
-	response, _, err := client.Exchange(query, options.nameserver)
-	if err == dns.ErrTruncated {
-		client.Net = "tcp"
-		response, _, err = client.Exchange(query, options.nameserver)
-	}
-	if err != nil {
-		return nil, errors.Wrap(err, "error executing DNS query")
-	}
-
-	switch response.Rcode {
-	case dns.RcodeSuccess:
-		// okay
-
-	case dns.RcodeNameError: // a.k.a. NXDOMAIN
-		// TODO: add an option to allow ignoring this
-		// This is the default for safety reasons
-		return nil, errors.Errorf("no TXT records for domain %s", domain)
-
-	default:
-		return nil, errors.Errorf("error from remote DNS server: %s", dns.RcodeToString[response.Rcode])
-	}
-
-	var results []string
-	for _, answer := range response.Answer {
-		if txt, ok := answer.(*dns.TXT); ok {
-			results = append(results, strings.Join(txt.Txt, ""))
-		}
-	}
-	return results, nil
-}
-
 func lookUpValues(options *options, txtRecords []string, key string, defaultValues []string) ([]string, error) {
 	var values []string
 	for _, record := range txtRecords {
@@ -123,10 +109,10 @@ func main() {
 	kingpin.Version("0.4.0")
 	kingpin.CommandLine.HelpFlag.Short('h')
 	kingpin.Flag("format", "Output format (json, plain, zero)").Short('f').Default("plain").Envar("SDGET_FORMAT").EnumVar(&options.outputFormat, "json", "plain", "zero")
-	kingpin.Flag("nameserver", "Nameserver address (ns.example.com:53, 127.0.0.1)").Short('@').Envar("SDGET_NAMESERVER").StringVar(&options.nameserver)
+	kingpin.Flag("nameserver", "Default nameserver address (ns.example.com:53, 127.0.0.1)").Short('@').Envar("SDGET_NAMESERVER").StringVar(&options.nameserver)
 	kingpin.Flag("type", "Data value type (single, list)").Short('t').Default("single").Envar("SDGET_TYPE").EnumVar(&options.valueType, "single", "list")
-	domain := kingpin.Arg("domain", "Domain name to query for TXT records").Required().String()
-	key := kingpin.Arg("key", "Key name to look up in domain").Required().String()
+	source := kingpin.Arg("source", "URI or domain name to query for TXT records").Required().String()
+	key := kingpin.Arg("key", "Key name to look up in source").Required().String()
 	defaultValues := kingpin.Arg("default", "Default value(s) to use if key is not found").Strings()
 	kingpin.Parse()
 
@@ -139,21 +125,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := configureNameserver(options); err != nil {
-		fmt.Fprintf(os.Stderr, "Error configuring nameserver: %s\n", err.Error())
+	provider, err := getTxtProvider(options, *source)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error setting up client: %s\n", err.Error())
 		os.Exit(2)
 	}
 
-	txtRecords, err := getTxtRecords(options, *domain)
+	txtRecords, err := provider.getTxtRecords()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error doing DNS lookup:\n%+v\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Error looking up TXT records:\n%+v\n", err.Error())
 		os.Exit(3)
 	}
 
 	var values []string
 	values, err = lookUpValues(options, txtRecords, *key, *defaultValues)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error looking up values for key \"%s\" in domain %s:\n%+v\n", *key, *domain, err.Error())
+		fmt.Fprintf(os.Stderr, "Error looking up values for key \"%s\" in %s:\n%+v\n", *key, *source, err.Error())
 		os.Exit(4)
 	}
 
