@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -48,54 +47,6 @@ func output(options *options, sink io.Writer, values []string) error {
 		for _, record := range values {
 			if _, err := fmt.Fprintln(sink, record); err != nil {
 				return err
-			}
-		}
-	}
-	return nil
-}
-
-func configureNameserver(options *options, resolvconf io.Reader) error {
-	// Users can specify the nameserver host and port, or just the host, or neither.
-	// In the last case, we fall back to the system config.  Otherwise we need make sure we have a port (53 as default).
-	if options.nameserver == "" {
-		// FIXME: use the supplied resolvconf instead of the hardcoded path when this is merged:
-		// https://github.com/miekg/dns/pull/532
-		config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
-		if err != nil {
-			return errors.Wrap(err, "error reading resolv.conf DNS configuration")
-		}
-		options.nameserver = config.Servers[0] + ":" + config.Port
-	} else {
-		// Addresses with ports:
-		//
-		// example.com:53
-		// localhost:53
-		// 127.0.0.1:53
-		// [::1]:53
-		//
-		// Addresses without ports:
-		//
-		// example.com
-		// localhost
-		// 127.0.0.1
-		// ::1
-		//
-		// (IPv6's reuse of colons makes life more complicated.)
-		hasPortRegex := "^([^:]+|\\[.+\\]):[0-9]+$"
-		hasPort, err := regexp.MatchString(hasPortRegex, options.nameserver)
-		if err != nil {
-			return errors.Wrap(err, "error reading nameserver address")
-		}
-		if !hasPort {
-			unwrappedIPv6Regex := "^[0-9a-fA-F:]*:[0-9a-fA-F:]+$"
-			needsWrapping, err := regexp.MatchString(unwrappedIPv6Regex, options.nameserver)
-			if err != nil {
-				return errors.Wrap(err, "error reading nameserver address")
-			}
-			if needsWrapping {
-				options.nameserver = fmt.Sprintf("[%s]:53", options.nameserver)
-			} else {
-				options.nameserver = options.nameserver + ":53"
 			}
 		}
 	}
@@ -171,7 +122,7 @@ func main() {
 	options := makeDefaultOptions()
 	kingpin.Version("0.4.0")
 	kingpin.CommandLine.HelpFlag.Short('h')
-	kingpin.Flag("format", "Output format (json, plain)").Short('f').Default("plain").Envar("SDGET_FORMAT").EnumVar(&options.outputFormat, "json", "plain")
+	kingpin.Flag("format", "Output format (json, plain, zero)").Short('f').Default("plain").Envar("SDGET_FORMAT").EnumVar(&options.outputFormat, "json", "plain", "zero")
 	kingpin.Flag("nameserver", "Nameserver address (ns.example.com:53, 127.0.0.1)").Short('@').Envar("SDGET_NAMESERVER").StringVar(&options.nameserver)
 	kingpin.Flag("type", "Data value type (single, list)").Short('t').Default("single").Envar("SDGET_TYPE").EnumVar(&options.valueType, "single", "list")
 	domain := kingpin.Arg("domain", "Domain name to query for TXT records").Required().String()
@@ -188,7 +139,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := configureNameserver(options, nil); err != nil {
+	if err := configureNameserver(options); err != nil {
 		fmt.Fprintf(os.Stderr, "Error configuring nameserver: %s\n", err.Error())
 		os.Exit(2)
 	}
