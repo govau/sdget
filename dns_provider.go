@@ -18,7 +18,7 @@ type dnsProvider struct {
 	domain     string
 }
 
-func makeDnsProvider(options *options, nameserver string, domain string) (txtProvider, error) {
+func makeDnsProvider(options *options, nameserver string, domain string) (*dnsProvider, error) {
 	if domain == "" {
 		return nil, errors.New("non-empty domain name required")
 	}

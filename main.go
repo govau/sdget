@@ -34,6 +34,18 @@ func getTxtProvider(options *options, source string) (txtProvider, error) {
 				domain = domain[1:len(domain)]
 			}
 			return makeDnsProvider(options, uri.authority, domain)
+
+		case "file":
+			if uri.query != "" {
+				return nil, fmt.Errorf("unexpected \"%s\": queries in file URIs not supported", uri.query)
+			}
+			if uri.fragment != "" {
+				return nil, fmt.Errorf("unexpected \"%s\": fragments in file URIs not supported", uri.fragment)
+			}
+			return makeFileProvider(options, uri.authority, uri.path)
+
+		default:
+			return nil, fmt.Errorf("Unsupported URI scheme: %s", uri.scheme)
 		}
 	}
 	return makeDnsProvider(options, "", source)

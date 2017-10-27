@@ -41,22 +41,29 @@ $ sdget --type list --format json foo.example.com things
 ["item1","item2"]
 ```
 
+TXT records don't have to be from a DNS server:
+
+```bash
+$ dig +short foo.example.com txt > /tmp/records
+$ sdget file:///tmp/records foo
+bar
+```
+
 ## Usage
 
 ```
-usage: sdget [<flags>] <domain> <key> [<default>...]
+usage: sdget [<flags>] <source> <key> [<default>...]
 
 Flags:
-  -h, --help                   Show context-sensitive help (also try --help-long
-                               and --help-man).
+  -h, --help                   Show context-sensitive help (also try --help-long and --help-man).
       --version                Show application version.
-  -f, --format=plain           Output format (json, plain)
-  -@, --nameserver=NAMESERVER  Nameserver address (ns.example.com:53, 127.0.0.1)
+  -f, --format=plain           Output format (json, plain, zero)
+  -@, --nameserver=NAMESERVER  Default nameserver address (ns.example.com:53, 127.0.0.1)
   -t, --type=single            Data value type (single, list)
 
 Args:
-  <domain>     Domain name to query for TXT records
-  <key>        Key name to look up in domain
+  <source>     URI or domain name to query for TXT records
+  <key>        Key name to look up in source
   [<default>]  Default value(s) to use if key is not found
 ```
 
@@ -103,3 +110,45 @@ but=not`in`values
 The escaping rules only apply to the data in the TXT rules.  Keys supplied on the command line only need normal shell escaping rules.  See also the [original spec](https://tools.ietf.org/html/rfc1464#page-2).
 
 Note that [TXT records themselves have some size limitations](https://tools.ietf.org/html/rfc6763#section-6.1).
+
+## TXT Record Sources
+By default, the `source` argument is interpreted as a domain name to query for TXT records.  Some URI schemes are also supported:
+
+### `dns`
+You can explicitly use a [DNS URI](https://tools.ietf.org/html/rfc4501):
+
+```bash
+sdget dns:foo.example.com key
+sdget dns://localhost:53/foo.example.com key
+```
+
+### `file`
+[File URIs](https://en.wikipedia.org/wiki/File_URI_scheme) can be used for testing, or for taking a snapshot of records that are queried multiple times:
+
+```bash
+sdget file:///tmp/records key
+sdget file:relative/path/to/records key
+```
+
+Records are stored line-by-line, with C-style double-quoting.  This is compatibile with the output of `dig +short`.
+
+```bash
+$ dig +short foo.example.com txt > /tmp/records
+$ cat /tmp/records
+"foo=bar"
+"escape sequences=\"are supported\x21\""
+$ sdget file:///tmp/records foo
+bar
+```
+
+You can also use raw strings instead of quoting, but quoting is recommended for automation.
+
+```bash
+$ cat /tmp/records
+i=am lazy
+"except=when I want my escape sequences\x21\x21\x21"
+$ sdget file:///tmp/records i
+am lazy
+$ sdget file:///tmp/records except
+when I want my escape sequences!!!
+```
