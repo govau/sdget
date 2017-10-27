@@ -1,10 +1,11 @@
 package main
 
 import (
-	"io"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -12,9 +13,9 @@ import (
 )
 
 type dnsProvider struct {
-	options *options
+	options    *options
 	nameserver string
-	domain string
+	domain     string
 }
 
 func makeDnsProvider(options *options, nameserver string, domain string) (txtProvider, error) {
@@ -29,9 +30,9 @@ func makeDnsProvider(options *options, nameserver string, domain string) (txtPro
 		domain = domain + "."
 	}
 	return &dnsProvider{
-		options: options,
+		options:    options,
 		nameserver: nameserver,
-		domain: domain,
+		domain:     domain,
 	}, nil
 }
 
@@ -66,9 +67,15 @@ func (d *dnsProvider) getTxtRecords() ([]string, error) {
 	var results []string
 	for _, answer := range response.Answer {
 		if txt, ok := answer.(*dns.TXT); ok {
-			results = append(results, strings.Join(txt.Txt, ""))
+			quotedRecord := strings.Join(txt.Txt, "")
+			unquoted, err := miekgUnquoteTxt(quotedRecord)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error trying to unquote TXT record \"%s\"", quotedRecord)
+			}
+			results = append(results, unquoted)
 		}
 	}
+
 	return results, nil
 }
 
@@ -137,4 +144,44 @@ func addNameserverPort(options *options, nameserver string) (string, error) {
 		}
 	}
 	return nameserver, nil
+}
+
+// This undoes the quoting done in unpackTxtString() in github.com/miekg/dns
+// For some reason, this library applies a custom quoting scheme to all TXT records.  It's incompatible with the quoting
+// scheme used for Go string literals, so we need a custom unquoting function.
+// " => \"
+// \ => \\
+// characters with byte value below 32 and above 127 => \DDD (three-digit decimal representation of byte value)
+//
+// This function should only fail if there's a bug caused by the original library changing its quoting scheme or something.
+var miekgEscapedEntity = regexp.MustCompile(`\\(\\|"|[0-9]{3}|.|$)`)
+
+func miekgUnquoteTxt(quoted string) (string, error) {
+	var err error
+	unquoter := func(s string) string {
+		// s should be `\\` or `\"` or something like `\012`
+		s = s[1:len(s)] // Strip leading /
+
+		if s == `"` || s == `\` {
+			return s
+		}
+
+		if len(s) == 3 {
+			val, atoiErr := strconv.Atoi(s)
+			if atoiErr != nil {
+				err = errors.Wrapf(atoiErr, "invalid miekg/dns escaped byte value: \\%s (this is a bug)", s)
+				return ""
+			}
+			if val < 0 || (val >= 32 && val <= 127) || val > 255 {
+				err = fmt.Errorf("miekg/dns escaped byte value out of range: \\%s (this is a bug)", s)
+				return ""
+			}
+			return string([]byte{byte(val)})
+		}
+
+		err = fmt.Errorf("invalid miekg/dns escape sequence: \\%s (this is a bug)", s)
+		return ""
+	}
+	unquoted := miekgEscapedEntity.ReplaceAllStringFunc(quoted, unquoter)
+	return unquoted, err
 }

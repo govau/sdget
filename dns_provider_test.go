@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -44,5 +45,43 @@ func TestReadResolvConf(t *testing.T) {
 	}
 	if nameserver != defaultNameserver {
 		t.Error("Expected", defaultNameserver, "but got", nameserver)
+	}
+}
+
+type miekgUnquoteTxtTestPair struct {
+	Input  string
+	Result string
+	Err    error
+}
+
+func TestMiekgUnquoteTxt(t *testing.T) {
+	for _, testPair := range []miekgUnquoteTxtTestPair{
+		{"", "", nil},
+		{"foo", "foo", nil},
+		{`\\`, `\`, nil},
+		{`\"foo\" \"bar\"`, `"foo" "bar"`, nil},
+		{`tab\009spaced`, "tab\tspaced", nil},
+		{`9999\0099999`, "9999\t9999", nil},
+		{`I \226\153\161 unicode`, "I ♡ unicode", nil},
+		{`\?`, "", errors.New("Invalid escape sequence")},
+		{`\`, "", errors.New("Invalid escape sequence")},
+		{`\999`, "", errors.New("Invalid escape sequence")},
+		{`\"\`, "", errors.New("Invalid escape sequence")},
+		{`\\\`, "", errors.New("Invalid escape sequence")},
+	} {
+		result, err := miekgUnquoteTxt(testPair.Input)
+
+		if err != nil && testPair.Err == nil {
+			t.Error("Unexpected error", err.Error(), "for", testPair)
+		}
+
+		if err == nil && testPair.Err != nil {
+			t.Error("Expected error", testPair.Err.Error(), "not caught for", testPair)
+		}
+
+		if testPair.Err == nil && result != testPair.Result {
+			t.Error("Expected", testPair.Result, "but got", result, "for", testPair)
+		}
+
 	}
 }
