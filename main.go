@@ -80,12 +80,51 @@ func output(options *options, sink io.Writer, values []string) error {
 	return nil
 }
 
+func splitRecord(record string) (isRecord bool, key string, value string) {
+	// Implements the rules in https://tools.ietf.org/html/rfc1464#page-2
+	// * Escaping done with `
+	// * Unescaped trailing and leading tabs and spaces removed
+	// * Key ends with unescaped =
+	record = strings.TrimLeft(record, " \t")
+	var bkey []byte
+	escapeNext := false
+	numTrailingWhitespace := 0
+	for i, c := range []byte(record) {
+		if escapeNext {
+			numTrailingWhitespace = 0
+			bkey = append(bkey, c)
+			escapeNext = false
+			continue
+		}
+
+		if c == '`' {
+			escapeNext = true
+			continue
+		}
+
+		if c == '=' {
+			bkey = bkey[0 : len(bkey)-numTrailingWhitespace]
+			key = strings.ToLower(string(bkey))
+			return true, key, record[i+1 : len(record)]
+		}
+
+		if c == ' ' || c == '\t' {
+			numTrailingWhitespace++
+		} else {
+			numTrailingWhitespace = 0
+		}
+		bkey = append(bkey, c)
+	}
+	return false, "", ""
+}
+
 func lookUpValues(options *options, txtRecords []string, key string, defaultValues []string) ([]string, error) {
+	key = strings.ToLower(key)
 	var values []string
 	for _, record := range txtRecords {
-		pieces := strings.SplitN(record, "=", 2)
-		if len(pieces) > 1 && pieces[0] == key {
-			values = append(values, pieces[1])
+		isRecord, recordKey, recordValue := splitRecord(record)
+		if isRecord && recordKey == key {
+			values = append(values, recordValue)
 		}
 	}
 	if len(values) == 0 {

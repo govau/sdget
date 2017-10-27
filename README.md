@@ -81,7 +81,7 @@ value
 * `plain`: values are output verbatim (default)
 
 ## TXT format details
-Each TXT string is treated as a simple key/value pair separated by a single `=`.  Everything after the first `=` is considered a value, which can contain any valid characters, including spaces or more `=` signs.  The key can contain any valid non-`=` characters.  Repeated keys are interpreted as lists.  Strings that aren't key/value pairs are simply ignored.
+Each TXT string is treated as a simple key/value pair separated by a single `=`.  Any `=` characters in the key name can be escaped using a backtick (`` ` ``), and everything after the first unescaped `=` is considered a value, which can contain any valid characters, including spaces or more `=` signs.  Keys are case-insensitive, and unescaped leading or trailing tabs and spaces are ignored.  Repeated keys are interpreted as lists.  Strings that aren't key/value pairs are simply ignored.
 
 Here are some examples of valid key/value pairs:
 ```
@@ -92,6 +92,14 @@ list-key=1
 list-key=2
 list-key=3
 empty value=
+=empty key
+ this key   =is stripped to just "this key"
+` but this key` ` =keeps all its spaces
+key`=with`=equals`=signs="value"
+backticks``need=escaping in key names
+but=not`in`values
 ```
+
+The escaping rules only apply to the data in the TXT rules.  Keys supplied on the command line only need normal shell escaping rules.  See also the [original spec](https://tools.ietf.org/html/rfc1464#page-2).
 
 Note that [TXT records themselves have some size limitations](https://tools.ietf.org/html/rfc6763#section-6.1).

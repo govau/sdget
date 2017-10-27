@@ -18,7 +18,13 @@ var sampleTxtRecords = []string{
 	"notkv",
 	"",
 	"=",
+	"`=",
+	"`",
 	"spaces and multiple equals signs=are no=problem at=all",
+	"\t with tabs\tand spaces \t=  whitespace value\t ",
+	"CamelCase=CamelCaseValue",
+	"ALLCAPS=ALLCAPS VALUE",
+	"` key`=with escapes`\t \t=`escaped`value",
 }
 
 var defaultOptions = makeDefaultOptions()
@@ -92,6 +98,7 @@ func TestLookUpValues(t *testing.T) {
 	for _, testPair := range []lookUpValuesTestPair{
 		{defaultOptions, []string{}, "foo", []string{}, nil, errors.New("No values")},
 		{defaultOptions, sampleTxtRecords, "foo", []string{}, []string{"bar"}, nil},
+		{defaultOptions, sampleTxtRecords, "FoO", []string{}, []string{"bar"}, nil},
 		{defaultOptions, sampleTxtRecords, "foo", []string{"default"}, []string{"bar"}, nil},
 		{defaultOptions, sampleTxtRecords, "nosuchkey", []string{"default value"}, []string{"default value"}, nil},
 		{defaultOptions, sampleTxtRecords, "empty", []string{}, []string{""}, nil},
@@ -99,6 +106,10 @@ func TestLookUpValues(t *testing.T) {
 		{defaultOptions, sampleTxtRecords, "nosuchkey", []string{}, nil, errors.New("No values")},
 		{defaultOptions, sampleTxtRecords, "notkv", []string{}, nil, errors.New("No values")},
 		{defaultOptions, sampleTxtRecords, "multival", []string{}, nil, errors.New("Too many values")},
+		{defaultOptions, sampleTxtRecords, "cAmElCaSe", []string{}, []string{"CamelCaseValue"}, nil},
+		{defaultOptions, sampleTxtRecords, "Allcaps", []string{}, []string{"ALLCAPS VALUE"}, nil},
+		{defaultOptions, sampleTxtRecords, "with tabs\tand spaces", []string{}, []string{"  whitespace value\t "}, nil},
+		{defaultOptions, sampleTxtRecords, " key=with escapes\t", []string{}, []string{"`escaped`value"}, nil},
 		{plainListOptions, sampleTxtRecords, "multival", []string{}, []string{"1", "2", "3"}, nil},
 		{plainListOptions, sampleTxtRecords, "foo", []string{}, []string{"bar"}, nil},
 		{plainListOptions, sampleTxtRecords, "nosuchkey", []string{}, []string{}, nil},
