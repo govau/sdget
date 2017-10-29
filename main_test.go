@@ -40,6 +40,10 @@ var jsonListOptions = &options{
 	outputFormat: "json",
 	valueType:    "list",
 }
+var zeroListOptions = &options{
+	outputFormat: "zero",
+	valueType:    "list",
+}
 
 type outputTestPair struct {
 	Options *options
@@ -65,6 +69,8 @@ func TestOutput(t *testing.T) {
 		{jsonListOptions, []string{"foo"}, "[\"foo\"]\n", nil},
 		{jsonListOptions, []string{"foo", "bar"}, "[\"foo\",\"bar\"]\n", nil},
 		{jsonListOptions, []string{"[]"}, "[\"[]\"]\n", nil},
+		{zeroListOptions, []string{"a", "b", "c"}, "a\000b\000c\000", nil},
+		{zeroListOptions, []string{`"foo and bar"`}, "\"foo and bar\"\000", nil},
 	} {
 		var outBuffer bytes.Buffer
 		err := output(testPair.Options, &outBuffer, testPair.Values)

@@ -35,14 +35,12 @@ item2
 ```
 
 The output format can be changed as well:
-
 ```bash
 $ sdget --type list --format json foo.example.com things
 ["item1","item2"]
 ```
 
 TXT records don't have to be from a DNS server:
-
 ```bash
 $ dig +short foo.example.com txt > /tmp/records
 $ sdget file:///tmp/records foo
@@ -68,7 +66,6 @@ Args:
 ```
 
 Flag defaults can be set using environment variables of the form `SDGET_FLAGNAME`.  E.g.:
-
 ```bash
 $ sdget foo.example.com key
 value
@@ -85,7 +82,10 @@ value
 ### `--format`
 
 * `json`: values encoded as JSON --- either a string or a list, depending on `--type`
-* `plain`: values are output verbatim (default)
+* `plain`: values are output verbatim, line-by-line (default)
+* `zero`: like plain, but with zero bytes (nulls) separating values, instead of newlines
+
+The `zero` is compatible with various non-POSIX extensions to shell utilities (e.g., `xargs -0`, `read -d ''`, `sed -z`, `cut -d ''`).  These extensions are *not* portable; most only work on GNU/Linux.
 
 ## TXT format details
 Each TXT string is treated as a simple key/value pair separated by a single `=`.  Any `=` characters in the key name can be escaped using a backtick (`` ` ``), and everything after the first unescaped `=` is considered a value, which can contain any valid characters, including spaces or more `=` signs.  Keys are case-insensitive, and unescaped leading or trailing tabs and spaces are ignored.  Repeated keys are interpreted as lists.  Strings that aren't key/value pairs are simply ignored.
@@ -116,7 +116,6 @@ By default, the `source` argument is interpreted as a domain name to query for T
 
 ### `dns`
 You can explicitly use a [DNS URI](https://tools.ietf.org/html/rfc4501):
-
 ```bash
 sdget dns:foo.example.com key
 sdget dns://localhost:53/foo.example.com key
@@ -124,14 +123,12 @@ sdget dns://localhost:53/foo.example.com key
 
 ### `file`
 [File URIs](https://en.wikipedia.org/wiki/File_URI_scheme) can be used for testing, or for taking a snapshot of records that are queried multiple times:
-
 ```bash
 sdget file:///tmp/records key
 sdget file:relative/path/to/records key
 ```
 
 Records are stored line-by-line, with C-style double-quoting.  This is compatibile with the output of `dig +short`.
-
 ```bash
 $ dig +short foo.example.com txt > /tmp/records
 $ cat /tmp/records
@@ -142,7 +139,6 @@ bar
 ```
 
 You can also use raw strings instead of quoting, but quoting is recommended for automation.
-
 ```bash
 $ cat /tmp/records
 i=am lazy

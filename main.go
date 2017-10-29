@@ -88,6 +88,12 @@ func output(options *options, sink io.Writer, values []string) error {
 				return err
 			}
 		}
+	case "zero":
+		for _, record := range values {
+			if _, err := fmt.Fprintf(sink, "%s\000", record); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
