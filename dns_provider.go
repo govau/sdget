@@ -42,11 +42,13 @@ func (d *dnsProvider) getTxtRecords() ([]string, error) {
 	query.RecursionDesired = true
 
 	client := new(dns.Client)
+
+	// Always use TCP since some of our values will otherwise get truncated,
+	// and this is simpler than trying UDP and falling back. We are not using this in
+	// a performant sensitive context.
+	client.Net = "tcp"
+
 	response, _, err := client.Exchange(query, d.nameserver)
-	if err == dns.ErrTruncated {
-		client.Net = "tcp"
-		response, _, err = client.Exchange(query, d.nameserver)
-	}
 	if err != nil {
 		return nil, errors.Wrap(err, "error executing DNS query")
 	}

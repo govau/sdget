@@ -178,7 +178,7 @@ func main() {
 	}
 
 	if options.valueType == "single" && len(*defaultValues) > 1 {
-		fmt.Fprintf(os.Stderr, "Got %n default values, but the value type is \"single\".  (Did you mean to set --type list?)\n", len(*defaultValues))
+		fmt.Fprintf(os.Stderr, "Got %d default values, but the value type is \"single\".  (Did you mean to set --type list?)\n", len(*defaultValues))
 		os.Exit(1)
 	}
 
